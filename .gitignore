@@ -1,0 +1,7 @@
+/MyAndroidApp/.gradle/
+/MyAndroidApp/.kotlin/
+/MyAndroidApp/.idea/
+/MyAndroidApp/local.properties
+/MyAndroidApp/**/build/
+
+/KeyStore/
