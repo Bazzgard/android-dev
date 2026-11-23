@@ -10,7 +10,7 @@ ENV PATH="${JAVA_HOME}/bin:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HO
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl git openjdk-17-jdk-headless ripgrep unzip \
+        ca-certificates curl git openjdk-17-jdk-headless procps ripgrep unzip \
     && ln -s "$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")" "${JAVA_HOME}" \
     && rm -rf /var/lib/apt/lists/*
 
@@ -43,6 +43,7 @@ RUN javac -version \
     && gradle --version \
     && sdkmanager --version \
     && adb version \
+    && ps -p "$$" \
     && codex --version
 
 CMD ["bash"]
