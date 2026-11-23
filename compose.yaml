@@ -1,0 +1,24 @@
+services:
+  android-dev:
+    build:
+      context: .
+      args:
+        ANDROID_API_LEVEL: "${ANDROID_API_LEVEL:-36}"
+        ANDROID_BUILD_TOOLS: "${ANDROID_BUILD_TOOLS:-35.0.0}"
+        CODEX_VERSION: "${CODEX_VERSION:-latest}"
+    platform: linux/amd64
+    init: true
+    stdin_open: true
+    tty: true
+    volumes:
+      - type: bind
+        source: "${ANDROID_PROJECT_DIR:?Set ANDROID_PROJECT_DIR in .env to your Android project directory}"
+        target: /workspace
+        bind:
+          create_host_path: false
+      - codex-data:/home/node/.codex
+      - gradle-cache:/home/node/.gradle
+
+volumes:
+  codex-data:
+  gradle-cache:
