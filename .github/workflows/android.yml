@@ -51,26 +51,41 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # The release build must be signed by the Android Gradle project.
-      # Configure signingConfig using GitHub Actions secrets before tagging.
       - name: Build production APK
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: gradle :app:assembleRelease
 
-      - name: Verify signed release APK
+      - name: Sign and verify release APK
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          APK=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -not -name '*unsigned*' -print -quit)
-          test -n "$APK" || { echo 'No signed release APK found. Configure signingConfig first.'; exit 1; }
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$APK"
-          cp "$APK" app-release.apk
+          for secret in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!secret}" ]]; then
+              echo "::error::Missing GitHub Actions secret: $secret"
+              exit 1
+            fi
+          done
+          signing_dir=$(mktemp -d)
+          trap 'rm -rf -- "$signing_dir"' EXIT
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$signing_dir/release.keystore"
+          build_tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$build_tools/zipalign" -P 16 4 app/build/outputs/apk/release/app-release-unsigned.apk "$signing_dir/aligned.apk"
+          "$build_tools/apksigner" sign \
+            --ks "$signing_dir/release.keystore" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --key-pass env:ANDROID_KEY_PASSWORD \
+            --out app-release.apk "$signing_dir/aligned.apk"
+          "$build_tools/apksigner" verify app-release.apk
 
       - name: Publish GitHub Release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" app-release.apk --title "$GITHUB_REF_NAME" --generate-notes
-        # Requires repository Settings > Actions > General > Workflow permissions:
-        # Read and write permissions, or job-level contents: write below.
+        run: gh release create "$GITHUB_REF_NAME" app-release.apk --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
     permissions:
       contents: write
