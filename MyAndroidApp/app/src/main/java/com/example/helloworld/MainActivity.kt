@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
                 scanner.launch(ScanOptions().apply {
                     setPrompt(getString(R.string.scan_prompt))
                     setBeepEnabled(false)
+                    setOrientationLocked(true)
                 })
             }
         }
